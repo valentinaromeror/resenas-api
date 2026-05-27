@@ -175,3 +175,70 @@ def rfc1():
             {"$group": {
                 "_id": "$hotel_id",
                 "calificacion_promedio": {"$avg": "$calificacion"},
+                "total_resenas": {"$sum": 1}
+            }},
+            {"$sort": {"calificacion_promedio": -1}},
+            {"$limit": 10}
+        ]))
+        for r in resultado:
+            r["hotel_id"] = r.pop("_id")
+        return resultado
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/resenas/rfc2/{hotel_id}")
+def rfc2(hotel_id: int):
+    try:
+        resultado = list(db["resenas"].aggregate([
+            {"$match": {"hotel_id": {"$in": [hotel_id, str(hotel_id)]}, "estado": "publicada"}},
+            {"$addFields": {
+                "fecha_date": {
+                    "$cond": {
+                        "if": {"$eq": [{"$type": "$fecha_creacion"}, "string"]},
+                        "then": {"$dateFromString": {"dateString": "$fecha_creacion"}},
+                        "else": "$fecha_creacion"
+                    }
+                }
+            }},
+            {"$group": {
+                "_id": {
+                    "anio": {"$year": "$fecha_date"},
+                    "mes": {"$month": "$fecha_date"}
+                },
+                "calificacion_promedio": {"$avg": "$calificacion"},
+                "total_resenas": {"$sum": 1}
+            }},
+            {"$sort": {"_id.anio": 1, "_id.mes": 1}}
+        ]))
+        return resultado
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/resenas/rfc3")
+def rfc3(hotel_ids: str):
+    try:
+        ids = [int(x) for x in hotel_ids.split(",")]
+        ids_str = [str(x) for x in ids]
+        resultado = list(db["resenas"].aggregate([
+            {"$match": {"hotel_id": {"$in": ids + ids_str}}},
+            {"$group": {
+                "_id": "$hotel_id",
+                "total_resenas": {"$sum": 1},
+                "calificacion_promedio": {"$avg": "$calificacion"},
+                "resenas_con_respuesta": {"$sum": {"$cond": [{"$ne": ["$respuesta_admin", None]}, 1, 0]}},
+                "resenas_destacadas": {"$sum": {"$cond": ["$destacada", 1, 0]}}
+            }},
+            {"$project": {
+                "_id": 1,
+                "total_resenas": 1,
+                "calificacion_promedio": {"$round": ["$calificacion_promedio", 2]},
+                "porcentaje_con_respuesta": {"$multiply": [{"$divide": ["$resenas_con_respuesta", "$total_resenas"]}, 100]},
+                "porcentaje_destacadas": {"$multiply": [{"$divide": ["$resenas_destacadas", "$total_resenas"]}, 100]}
+            }},
+            {"$sort": {"calificacion_promedio": -1}}
+        ]))
+        for r in resultado:
+            r["hotel_id"] = r.pop("_id")
+        return resultado
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
