@@ -21,7 +21,6 @@ db = client["ISIS2304H24202610"]
 def inicio():
     return {"estado": "API Dann Alpes - Reseñas funcionando"}
 
-# RF4 — Consultar reseñas de un hotel
 @app.get("/resenas/hotel/{hotel_id}")
 def get_resenas_hotel(hotel_id: int):
     resenas = list(db["resenas"].find(
@@ -30,7 +29,6 @@ def get_resenas_hotel(hotel_id: int):
     ))
     return resenas
 
-# RF1 — Crear reseña
 @app.post("/resenas")
 def crear_resena(datos: dict):
     datos["fecha_creacion"] = datetime.now().isoformat()
@@ -42,7 +40,6 @@ def crear_resena(datos: dict):
     datos.pop("_id", None)
     return {"mensaje": "Reseña creada", "id": str(result.inserted_id)}
 
-# RF2 — Editar reseña
 @app.put("/resenas/{resena_id}")
 def editar_resena(resena_id: str, datos: dict):
     campos = {}
@@ -56,7 +53,6 @@ def editar_resena(resena_id: str, datos: dict):
     )
     return {"mensaje": "Reseña actualizada"}
 
-# RF3 — Eliminar reseña (cliente)
 @app.delete("/resenas/{resena_id}")
 def eliminar_resena(resena_id: str):
     db["resenas"].update_one(
@@ -65,7 +61,6 @@ def eliminar_resena(resena_id: str):
     )
     return {"mensaje": "Reseña eliminada"}
 
-# RF5 — Marcar reseña como útil
 @app.post("/resenas/{resena_id}/votos")
 def votar_resena(resena_id: str, datos: dict):
     db["resenas"].update_one(
@@ -74,7 +69,6 @@ def votar_resena(resena_id: str, datos: dict):
     )
     return {"mensaje": "Voto registrado"}
 
-# RF6 — Historial de reseñas propias
 @app.get("/resenas/cliente/{cliente_id}")
 def get_resenas_cliente(cliente_id: int):
     resenas = list(db["resenas"].find(
@@ -83,7 +77,6 @@ def get_resenas_cliente(cliente_id: int):
     ))
     return resenas
 
-# RF7 — Responder reseña (admin)
 @app.put("/resenas/{resena_id}/respuesta")
 def responder_resena(resena_id: str, datos: dict):
     db["resenas"].update_one(
@@ -98,7 +91,6 @@ def responder_resena(resena_id: str, datos: dict):
     )
     return {"mensaje": "Respuesta guardada"}
 
-# RF8 — Eliminar reseña (admin)
 @app.delete("/resenas/{resena_id}/admin")
 def eliminar_resena_admin(resena_id: str):
     db["resenas"].update_one(
@@ -107,7 +99,6 @@ def eliminar_resena_admin(resena_id: str):
     )
     return {"mensaje": "Reseña eliminada por administrador"}
 
-# RF9 — Destacar reseña
 @app.put("/resenas/{resena_id}/destacar")
 def destacar_resena(resena_id: str):
     db["resenas"].update_one(
@@ -116,7 +107,6 @@ def destacar_resena(resena_id: str):
     )
     return {"mensaje": "Reseña destacada"}
 
-# RFC1 — Top 10 hoteles por calificación promedio
 @app.get("/resenas/rfc1")
 def rfc1():
     resultado = list(db["resenas"].aggregate([
@@ -133,15 +123,23 @@ def rfc1():
         r["hotel_id"] = r.pop("_id")
     return resultado
 
-# RFC2 — Evolución reputación mes a mes
 @app.get("/resenas/rfc2/{hotel_id}")
 def rfc2(hotel_id: int):
     resultado = list(db["resenas"].aggregate([
         {"$match": {"hotel_id": hotel_id, "estado": "publicada"}},
+        {"$addFields": {
+            "fecha_date": {
+                "$cond": {
+                    "if": {"$eq": [{"$type": "$fecha_creacion"}, "string"]},
+                    "then": {"$dateFromString": {"dateString": "$fecha_creacion"}},
+                    "else": "$fecha_creacion"
+                }
+            }
+        }},
         {"$group": {
             "_id": {
-                "anio": {"$year": {"$dateFromString": {"dateString": "$fecha_creacion"}}},
-                "mes": {"$month": {"$dateFromString": {"dateString": "$fecha_creacion"}}}
+                "anio": {"$year": "$fecha_date"},
+                "mes": {"$month": "$fecha_date"}
             },
             "calificacion_promedio": {"$avg": "$calificacion"},
             "total_resenas": {"$sum": 1}
@@ -150,7 +148,6 @@ def rfc2(hotel_id: int):
     ]))
     return resultado
 
-# RFC3 — Perfil comparativo hoteles por ciudad
 @app.get("/resenas/rfc3")
 def rfc3(hotel_ids: str):
     ids = [int(x) for x in hotel_ids.split(",")]
