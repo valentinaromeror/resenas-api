@@ -172,8 +172,17 @@ def rfc1():
     try:
         resultado = list(db["resenas"].aggregate([
             {"$match": {"estado": "publicada"}},
+            {"$addFields": {
+                "hotel_id_num": {
+                    "$cond": {
+                        "if": {"$eq": [{"$type": "$hotel_id"}, "string"]},
+                        "then": {"$toInt": "$hotel_id"},
+                        "else": "$hotel_id"
+                    }
+                }
+            }},
             {"$group": {
-                "_id": "$hotel_id",
+                "_id": "$hotel_id_num",
                 "calificacion_promedio": {"$avg": "$calificacion"},
                 "total_resenas": {"$sum": 1}
             }},
@@ -221,8 +230,17 @@ def rfc3(hotel_ids: str):
         ids_str = [str(x) for x in ids]
         resultado = list(db["resenas"].aggregate([
             {"$match": {"hotel_id": {"$in": ids + ids_str}}},
+            {"$addFields": {
+                "hotel_id_num": {
+                    "$cond": {
+                        "if": {"$eq": [{"$type": "$hotel_id"}, "string"]},
+                        "then": {"$toInt": "$hotel_id"},
+                        "else": "$hotel_id"
+                    }
+                }
+            }},
             {"$group": {
-                "_id": "$hotel_id",
+                "_id": "$hotel_id_num",
                 "total_resenas": {"$sum": 1},
                 "calificacion_promedio": {"$avg": "$calificacion"},
                 "resenas_con_respuesta": {"$sum": {"$cond": [{"$ne": ["$respuesta_admin", None]}, 1, 0]}},
