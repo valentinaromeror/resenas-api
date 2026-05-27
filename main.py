@@ -88,6 +88,8 @@ def editar_resena(resena_id: str, datos: dict):
             campos["texto"] = datos["comentario"]
         if "calificacion" in datos:
             campos["calificacion"] = int(datos["calificacion"])
+        if "destacada" in datos:
+            campos["destacada"] = bool(datos["destacada"])
         if not campos:
             raise HTTPException(status_code=400, detail="No hay campos para actualizar")
         result = db["resenas"].update_one({"_id": oid}, {"$set": campos})
@@ -160,6 +162,14 @@ def eliminar_resena_admin(resena_id: str):
 def destacar_resena(resena_id: str):
     try:
         oid = valid_object_id(resena_id)
+        resena = db["resenas"].find_one({"_id": oid})
+        if not resena:
+            raise HTTPException(status_code=404, detail="Reseña no encontrada")
+        hotel_id = resena["hotel_id"]
+        db["resenas"].update_many(
+            {"hotel_id": {"$in": [hotel_id, str(hotel_id)]}},
+            {"$set": {"destacada": False}}
+        )
         db["resenas"].update_one({"_id": oid}, {"$set": {"destacada": True}})
         return {"mensaje": "Reseña destacada"}
     except HTTPException:
