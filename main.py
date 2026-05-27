@@ -43,7 +43,10 @@ def get_resenas_hotel(hotel_id: int):
 @app.get("/resenas/cliente/{cliente_id}")
 def get_resenas_cliente(cliente_id: int):
     try:
-        resenas = list(db["resenas"].find({"cliente_id": cliente_id}))
+        resenas = list(db["resenas"].find({
+            "cliente_id": {"$in": [cliente_id, str(cliente_id)]},
+            "estado": {"$ne": "eliminada"}
+        }))
         return [serialize(r) for r in resenas]
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -51,6 +54,16 @@ def get_resenas_cliente(cliente_id: int):
 @app.post("/resenas")
 def crear_resena(datos: dict):
     try:
+        if "cliente_id" in datos:
+            datos["cliente_id"] = int(datos["cliente_id"])
+        if "hotel_id" in datos:
+            datos["hotel_id"] = int(datos["hotel_id"])
+        if "reserva_id" in datos:
+            datos["reserva_id"] = int(datos["reserva_id"])
+        if "calificacion" in datos:
+            datos["calificacion"] = int(datos["calificacion"])
+        if "comentario" in datos and "texto" not in datos:
+            datos["texto"] = datos.pop("comentario")
         datos["fecha_creacion"] = datetime.now().isoformat()
         datos["estado"] = "publicada"
         datos["destacada"] = False
@@ -68,6 +81,8 @@ def editar_resena(resena_id: str, datos: dict):
         campos = {}
         if "texto" in datos:
             campos["texto"] = datos["texto"]
+        if "comentario" in datos:
+            campos["texto"] = datos["comentario"]
         if "calificacion" in datos:
             campos["calificacion"] = int(datos["calificacion"])
         if not campos:
