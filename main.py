@@ -73,9 +73,10 @@ def votar_resena(resena_id: str, datos: dict):
 @app.get("/resenas/cliente/{cliente_id}")
 def get_resenas_cliente(cliente_id: int):
     resenas = list(db["resenas"].find(
-        {"cliente_id": cliente_id},
-        {"_id": 0}
+        {"cliente_id": cliente_id}
     ))
+    for r in resenas:
+        r["_id"] = str(r["_id"])
     return resenas
 
 @app.put("/resenas/{resena_id}/respuesta")
