@@ -9,7 +9,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "https://iacademy2.oracle.com"],
+    allow_origins=["https://iacademy2.oracle.com"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
